@@ -1,0 +1,12 @@
+# Environment
+.env
+
+# IDE
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+
+# Database
+db.sqlite3
