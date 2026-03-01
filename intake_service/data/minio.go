@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 // MinioRepository defines the interface for data access.
 type MinioRepository interface {
 	GetObject(objectKey string) ([]byte, error)
+	SaveObject(objectKey string, data []byte, contentType string) error
 }
 
 type minioRepository struct {
@@ -60,4 +62,14 @@ func (r *minioRepository) GetObject(objectKey string) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// SaveObject uploads an object to Minio.
+func (r *minioRepository) SaveObject(objectKey string, data []byte, contentType string) error {
+	reader := bytes.NewReader(data)
+	_, err := r.client.PutObject(context.Background(), r.bucketName, objectKey, reader, int64(len(data)), minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		return fmt.Errorf("failed to upload object '%s': %w", objectKey, err)
+	}
+	return nil
 }

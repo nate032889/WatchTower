@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/nate/retrieval_service/data"
-	"github.com/nate/retrieval_service/service"
+	"github.com/nate/intake_service/data"
+	"github.com/nate/intake_service/service"
 )
 
 func main() {
@@ -16,12 +16,12 @@ func main() {
 	}
 
 	// 2. Initialize the Service Layer
-	svc := service.NewRetrievalService(repo)
+	svc := service.NewIntakeService(repo)
 
 	// 3. Setup Router and Middleware
 	r := NewRouter(svc)
 
-	log.Println("Starting retrieval service on :3000...")
+	log.Println("Starting intake service on :3000...")
 	if err := http.ListenAndServe(":3000", r); err != nil {
 		log.Fatalf("FATAL: Could not start server: %v", err)
 	}

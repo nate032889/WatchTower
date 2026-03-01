@@ -24,6 +24,11 @@ services:
       - "9000:9000"
       - "9001:9001"
 
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
   api:
     build: ./backend
     command: python manage.py runserver 0.0.0.0:8000
@@ -42,9 +47,11 @@ services:
       - MINIO_SECRET_KEY=minioadmin
       - MINIO_BUCKET_NAME=evidence
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - db
       - minio
+      - redis
 
   frontend:
     build: ./frontend
@@ -52,21 +59,21 @@ services:
       - "80:80"
     depends_on:
       - api
-      - retrieval_service
+      - intake_service
 
-  discord_bot:
-    build: ./discord_bot
+  fleet_manager:
+    build: ./fleet_manager
     volumes:
-      - ./discord_bot:/usr/src/app
+      - ./fleet_manager:/app
     environment:
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
-      - WATCHTOWER_API_ENDPOINT=http://api:8000/v1/prompt/
-      - DISCORD_MESSAGE_LIMIT=2000
+      - API_ENDPOINT=http://api:8000/api/v1/interactor/message/
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - api
+      - redis
 
-  retrieval_service:
-    build: ./retrieval_service
+  intake_service:
+    build: ./intake_service
     ports:
       - "3000:3000"
     environment:

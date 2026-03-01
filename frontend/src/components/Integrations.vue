@@ -1,40 +1,11 @@
 <template>
   <v-card>
-    <v-card-title>Provider Settings</v-card-title>
+    <v-card-title>Bot Integrations</v-card-title>
     <v-card-text>
       <v-form ref="form" v-model="valid">
         <v-select
-          v-model="provider"
-          :items="providers"
-          label="LLM Provider"
-          required
-        ></v-select>
-
-        <v-text-field
-          v-model="apiKey"
-          label="API Key"
-          type="password"
-          required
-        ></v-text-field>
-
-        <v-btn
-          color="primary"
-          @click="saveSettings"
-          :disabled="!valid"
-        >
-          Save
-        </v-btn>
-      </v-form>
-    </v-card-text>
-  </v-card>
-
-  <v-card class="mt-4">
-    <v-card-title>Chat Integrations</v-card-title>
-    <v-card-text>
-      <v-form ref="integrationForm" v-model="integrationValid">
-        <v-select
-          v-model="integrationPlatform"
-          :items="integrationPlatforms"
+          v-model="platform"
+          :items="platforms"
           label="Platform"
           required
         ></v-select>
@@ -49,7 +20,7 @@
         <v-btn
           color="primary"
           @click="saveIntegration"
-          :disabled="!integrationValid"
+          :disabled="!valid"
         >
           Save Integration
         </v-btn>
@@ -63,22 +34,11 @@ import { ref, computed } from 'vue'
 import { useAppStore } from '../stores/app'
 
 const store = useAppStore()
-
-// Provider Settings
 const valid = ref(false)
-const provider = ref('Gemini')
-const apiKey = ref('')
-const providers = ['Gemini', 'ChatGPT', 'Claude']
-
-const saveSettings = () => {
-  console.log('Saving settings:', { provider: provider.value, apiKey: apiKey.value })
-}
-
-// Integration Settings
-const integrationValid = ref(false)
-const integrationPlatform = ref('Discord')
+const platform = ref('Discord')
 const botToken = ref('')
-const integrationPlatforms = ['Discord', 'Slack']
+
+const platforms = ['Discord', 'Slack', 'Mattermost']
 
 const activeOrganizationId = computed(() => store.activeOrganizationId)
 
@@ -89,12 +49,12 @@ const saveIntegration = async () => {
   }
 
   try {
-    const response = await fetch('/api/v1/bot-integrations/', {
+    const response = await fetch('/api/v1/integrations/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         organization: activeOrganizationId.value,
-        platform: integrationPlatform.value.toLowerCase(),
+        platform: platform.value.toLowerCase(),
         bot_token: botToken.value,
         is_active: true
       })
@@ -103,6 +63,7 @@ const saveIntegration = async () => {
       throw new Error('Failed to save integration.')
     }
     alert('Integration saved successfully!')
+    // Optionally, clear the form
     botToken.value = ''
   } catch (error) {
     console.error('Error saving integration:', error)

@@ -15,6 +15,9 @@
           <v-col cols="12" md="6">
             <TemplateManager />
           </v-col>
+          <v-col cols="12">
+            <Integrations />
+          </v-col>
         </v-row>
       </v-container>
     </v-main>
@@ -25,4 +28,5 @@
 import OrganizationSelector from './components/OrganizationSelector.vue'
 import ProviderSettings from './components/ProviderSettings.vue'
 import TemplateManager from './components/TemplateManager.vue'
+import Integrations from './components/Integrations.vue'
 </script>
