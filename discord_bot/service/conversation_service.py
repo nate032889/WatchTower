@@ -2,7 +2,7 @@ import os
 import requests
 import logging
 from typing import List, Tuple
-from ..data.history_repository import HistoryRepository, MessageDTO
+from data.history_repository import HistoryRepository, MessageDTO, EvidenceDTO
 
 # --- Configuration ---
 HISTORY_THRESHOLD = 20
@@ -90,3 +90,76 @@ class ConversationService:
         if len(conversation.messages) > HISTORY_THRESHOLD:
             new_history = self._summarize_conversation(conversation.messages)
             self.repo.replace_history(key, new_history)
+
+    # --- Operational Memory Commands ---
+
+    def create_occurrence_and_bind_channel(self, label: str, workflow: str, channel_id: int) -> str:
+        """
+        Creates a new occurrence and binds the current channel to it.
+        :param label: The label for the occurrence.
+        :param workflow: The workflow type (e.g., 'pentest').
+        :param channel_id: The ID of the Discord channel.
+        :return: A status message.
+        """
+        try:
+            occurrence = self.repo.create_occurrence(label=label, workflow=workflow)
+            binding_key = f"channel_{channel_id}"
+            self.repo.set_binding(binding_key, occurrence.id)
+            return f"✅ Occurrence '{label}' created (ID: {occurrence.id}) and bound to this channel."
+        except Exception as e:
+            logger.error(f"Failed to create occurrence: {e}")
+            return f"❌ Failed to create occurrence: {str(e)}"
+
+    def submit_evidence(self, content: str, channel_id: int, user_id: int) -> str:
+        """
+        Submits evidence to the active occurrence for the channel.
+        :param content: The evidence content.
+        :param channel_id: The ID of the Discord channel.
+        :param user_id: The ID of the user submitting the evidence.
+        :return: A status message.
+        """
+        binding_key = f"channel_{channel_id}"
+        occurrence_id = self.repo.get_binding(binding_key)
+        
+        if not occurrence_id:
+            return "❌ No active occurrence bound to this channel. Use `!wt set_occurrence` first."
+
+        try:
+            evidence = self.repo.add_evidence(occurrence_id, content, source=f"user_{user_id}")
+            return f"✅ Evidence submitted (ID: {evidence.id})."
+        except Exception as e:
+            logger.error(f"Failed to submit evidence: {e}")
+            return f"❌ Failed to submit evidence: {str(e)}"
+
+    def generate_closeout_summary(self, channel_id: int) -> str:
+        """
+        Generates a closeout summary based on all evidence for the active occurrence.
+        :param channel_id: The ID of the Discord channel.
+        :return: The generated summary or an error message.
+        """
+        binding_key = f"channel_{channel_id}"
+        occurrence_id = self.repo.get_binding(binding_key)
+        
+        if not occurrence_id:
+            return "❌ No active occurrence bound to this channel. Use `!wt set_occurrence` first."
+
+        evidence_list = self.repo.get_evidence_for_occurrence(occurrence_id)
+        if not evidence_list:
+            return "⚠️ No evidence found for this occurrence. Submit evidence using `!wt submit_evidence`."
+
+        evidence_text = "\\n".join([f"- {e.content} (Source: {e.source})" for e in evidence_list])
+        prompt = (
+            f"Please generate a formal closeout summary for the following operational occurrence.\\n"
+            f"Review all the collected evidence below and synthesize a report.\\n\\n"
+            f"--- COLLECTED EVIDENCE ---\\n{evidence_text}"
+        )
+
+        try:
+            # We send this as a fresh request without history to get a clean summary
+            # Note: We are bypassing the usual history mechanism here for a focused task
+            response = requests.post(API_ENDPOINT, json={'prompt': prompt, 'history': []})
+            response.raise_for_status()
+            return response.json().get('response', '❌ Failed to generate summary.')
+        except Exception as e:
+            logger.error(f"Failed to generate closeout: {e}")
+            return f"❌ Error generating closeout: {str(e)}"

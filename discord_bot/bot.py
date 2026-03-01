@@ -73,14 +73,53 @@ def main():
         Event handler for when a message is received.
         :param message: The Discord message object.
         """
-        if message.author == client.user or not client.user.mentioned_in(message):
+        if message.author == client.user:
             return
 
         db_session = next(get_db())
         try:
             repo = HistoryRepository(db_session)
             service = ConversationService(repo)
-            
+            content = message.content.strip()
+
+            # --- Command Parsing ---
+            if content.startswith("!wt"):
+                parts = content.split()
+                command = parts[1] if len(parts) > 1 else ""
+                
+                if command == "set_occurrence":
+                    if len(parts) < 4:
+                        await message.channel.send("Usage: `!wt set_occurrence <label> <workflow>`")
+                    else:
+                        label = parts[2]
+                        workflow = parts[3]
+                        result = service.create_occurrence_and_bind_channel(label, workflow, message.channel.id)
+                        await message.channel.send(result)
+                    return
+
+                elif command == "submit_evidence":
+                    if len(parts) < 3:
+                        await message.channel.send("Usage: `!wt submit_evidence <text>`")
+                    else:
+                        evidence_text = " ".join(parts[2:])
+                        result = service.submit_evidence(evidence_text, message.channel.id, message.author.id)
+                        await message.channel.send(result)
+                    return
+
+                elif command == "generate_closeout":
+                    await message.channel.send("⏳ Generating closeout summary... This may take a moment.")
+                    result = service.generate_closeout_summary(message.channel.id)
+                    await send_in_chunks(message.channel, result)
+                    return
+                
+                else:
+                    await message.channel.send("Unknown command. Available: `set_occurrence`, `submit_evidence`, `generate_closeout`")
+                    return
+
+            # --- Standard Conversation Handling ---
+            if not client.user.mentioned_in(message):
+                return
+
             prompt = message.content.replace(f'<@!{client.user.id}>', '').strip()
             is_thread = isinstance(message.channel, discord.Thread)
             channel_id = message.channel.parent_id if is_thread else message.channel.id
