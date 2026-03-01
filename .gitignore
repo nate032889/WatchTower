@@ -1,14 +1,46 @@
 # Environment
 .env
+.env.*
 
 # IDE
 .idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
 
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
 
 # Database
 db.sqlite3
+*.sqlite3
 
+# Node.js / Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+frontend/dist/
+frontend/.output/
+
+# Go / Intake Service
+intake_service/intake_service
+intake_service/*.exe
+intake_service/*.test
+intake_service/*.out
+
+# Fleet Manager
+fleet_manager/*.log
+
+# Docker
+docker-compose.override.yml
+
+# Misc
 discord_bot_env_backup.txt
