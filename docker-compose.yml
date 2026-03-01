@@ -37,6 +37,7 @@ services:
     ports:
       - "8000:8000"
     environment:
+      - DOCKER_ENV=true # <-- Add this line
       - DB_NAME=watchtower
       - DB_USER=postgres
       - DB_PASSWORD=postgres

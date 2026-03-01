@@ -1,0 +1,41 @@
+version: '3.8'
+
+# This file is for local development only.
+# It runs stateful infrastructure services that your native application code can connect to.
+# To use: `docker-compose -f docker-compose.local.yml up -d`
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=watchtower_db
+      - POSTGRES_USER=watchtower_user
+      - POSTGRES_PASSWORD=watchtower_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data/
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_local_data:/data
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=miniopassword
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_local_data:/data
+
+volumes:
+  postgres_local_data:
+  redis_local_data:
+  minio_local_data:

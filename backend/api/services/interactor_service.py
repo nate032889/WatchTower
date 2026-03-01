@@ -1,5 +1,5 @@
 import logging
-from typing import Tuple, Dict, Any, Optional, List
+from typing import Tuple, Dict, Any, Optional
 
 from agents.agent import get_llm_agent
 from agents.types import LLMProvider
@@ -34,12 +34,18 @@ class InteractorService:
         """
         Processes attachments and returns enriched context. Returns an error if no occurrence is active.
         """
-        enriched_context = ""
+        # 1. Guard Clause: If there are no attachments, do nothing.
+        attachment_urls = payload.get("attachment_urls", [])
+        if not attachment_urls:
+            return "", None
+
+        # 2. Occurrence Check: Only check for an occurrence if there are files to process.
         if not conversation.occurrence:
             logger.warning(f"Conversation {conversation.id} has no active occurrence. Cannot process attachments.")
-            return "", ValueError("No active occurrence is bound to this conversation to associate evidence with.")
+            return "", ValueError("Attachments were sent, but no active occurrence is bound to this conversation.")
 
-        for url in payload.get("attachment_urls", []):
+        enriched_context = ""
+        for url in attachment_urls:
             intake_data, err = IntakeServiceClient.process_attachment(url)
             if err:
                 logger.error(f"Failed to process attachment {url}: {err}")
@@ -65,7 +71,7 @@ class InteractorService:
         """
         Orchestrates the entire process of handling an incoming message.
         """
-        # 1. Get Conversation and Occurrence context
+        # 1. Get Conversation context
         conversation = InteractorService._get_or_create_conversation(payload)
 
         # 2. Process attachments to enrich the prompt
@@ -82,9 +88,8 @@ class InteractorService:
         
         try:
             agent = get_llm_agent(LLMProvider.GEMINI)
-            # Pass the raw Django queryset directly to the agent
             response_text = agent.generate_response(
-                prompt=final_content, history=messages[:-1] # Pass all but the last message
+                prompt=final_content, history=messages[:-1]
             )
         except Exception as e:
             logger.error(f"LLM generation failed for conversation {conversation.id}: {e}", exc_info=True)

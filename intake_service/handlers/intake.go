@@ -30,13 +30,14 @@ type IntakeResponse struct {
 }
 
 func (h *IntakeHandler) GetEvidence(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	objectKey := chi.URLParam(r, "object_key")
 	if objectKey == "" {
 		http.Error(w, "Object key is required", http.StatusBadRequest)
 		return
 	}
 
-	processedText, err := h.svc.GetEvidence(objectKey)
+	processedText, err := h.svc.GetEvidence(ctx, objectKey)
 	if err != nil {
 		log.Printf("ERROR: %v", err)
 		http.Error(w, "Failed to retrieve evidence", http.StatusInternalServerError)
@@ -54,13 +55,12 @@ func (h *IntakeHandler) GetEvidence(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *IntakeHandler) IntakeFile(w http.ResponseWriter, r *http.Request) {
-	// 1. Parse the multipart form
+	ctx := r.Context()
 	if err := r.ParseMultipartForm(10 << 20); err != nil { // 10 MB
 		http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
 		return
 	}
 
-	// 2. Get the file from the form
 	file, handler, err := r.FormFile("file")
 	if err != nil {
 		http.Error(w, "Failed to retrieve file from form", http.StatusBadRequest)
@@ -68,22 +68,19 @@ func (h *IntakeHandler) IntakeFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// 3. Read the file data
 	fileBytes, err := io.ReadAll(file)
 	if err != nil {
 		http.Error(w, "Failed to read file data", http.StatusInternalServerError)
 		return
 	}
 
-	// 4. Call the service layer to process and save the file
-	objectKey, extractedText, err := h.svc.ProcessIntake(handler.Filename, fileBytes, handler.Header.Get("Content-Type"))
+	objectKey, extractedText, err := h.svc.ProcessIntake(ctx, handler.Filename, fileBytes, handler.Header.Get("Content-Type"))
 	if err != nil {
 		log.Printf("ERROR: %v", err)
 		http.Error(w, "Failed to process intake", http.StatusInternalServerError)
 		return
 	}
 
-	// 5. Format and send the response
 	response := IntakeResponse{
 		ObjectKey:     objectKey,
 		ExtractedText: extractedText,

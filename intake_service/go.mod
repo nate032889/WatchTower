@@ -6,6 +6,7 @@ require (
 	github.com/go-chi/chi/v5 v5.0.12
 	github.com/google/gopacket v1.1.19
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/ledongthuc/pdf v0.0.0-20240201131950-da5b75280b06
 	github.com/minio/minio-go/v7 v7.0.70
 )

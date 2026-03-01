@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 
@@ -9,20 +10,33 @@ import (
 )
 
 func main() {
-	// 1. Initialize the Data Layer (Repository)
-	repo, err := data.NewMinioRepository()
+	// 1. Load configuration from environment
+	cfg, err := LoadConfig()
+	if err != nil {
+		log.Fatalf("FATAL: Could not load configuration: %v", err)
+	}
+
+	// 2. Initialize the Data Layer with the loaded config
+	repo, err := data.NewMinioRepository(
+		cfg.MinioEndpoint,
+		cfg.MinioAccessKey,
+		cfg.MinioSecretKey,
+		cfg.MinioBucket,
+	)
 	if err != nil {
 		log.Fatalf("FATAL: Could not initialize Minio repository: %v", err)
 	}
 
-	// 2. Initialize the Service Layer
+	// 3. Initialize the Service Layer
 	svc := service.NewIntakeService(repo)
 
-	// 3. Setup Router and Middleware
+	// 4. Setup Router and Middleware
 	r := NewRouter(svc)
 
-	log.Println("Starting intake service on :3000...")
-	if err := http.ListenAndServe(":3000", r); err != nil {
+	// 5. Start the server
+	listenAddr := fmt.Sprintf(":%s", cfg.ServerPort)
+	log.Printf("Starting intake service on %s...", listenAddr)
+	if err := http.ListenAndServe(listenAddr, r); err != nil {
 		log.Fatalf("FATAL: Could not start server: %v", err)
 	}
 }
