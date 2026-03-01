@@ -36,7 +36,9 @@ This document outlines the core architectural principles, design patterns, and t
 * **Single Level of Abstraction Principle (SLAP) & Compose Method:** All functions must be composed at the *same* level of detail. Do not mix high-level orchestration with low-level string manipulation.
 * **Method Size & Nesting:** Long methods are hard to test, read, debug, and reuse. They obscure business rules. The size of a function is acceptable when it fits within a single screen, but the true metric of complexity is the length of nesting. Extract and invert conditionals to keep the primary path clear.
 * **Tell, Don't Ask:** Instead of asking an object for its data and acting upon it, tell the object what to do. Push behavior down into the objects that hold the data.
-* **Avoid Primitive Obsession (Accidental Complexity):** Do not use basic data types (strings, integers, arrays) to represent domain concepts. Use functional built-ins that are idiomatic to the language to handle data transformations.
+* **API Data Contracts:**
+    *   **For Django/DRF Services:** Use **Django Rest Framework (DRF) Serializers** for validating incoming API request bodies at the View layer. This is the idiomatic approach.
+    *   **For non-Django Python Services (e.g., FastAPI, Flask, Fleet Manager):** Use **Pydantic** for all data validation, including incoming request bodies. It is the preferred standard in these environments.
 * **Knock Out Before You Mock Out:** Deal with and isolate your actual dependencies as much as possible before resorting to heavy mocking in your testing strategy.
 
 ## 4. Readability & Intent

@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 
 	"github.com/google/uuid"
-	"github.com/nate/intake_service/data"
-	"github.com/nate/intake_service/service/parser"
+	"github.com/nate032889/WatchTower/intake_service/data"
+	"github.com/nate032889/WatchTower/intake_service/service/parser"
 )
 
 // IntakeService defines the business logic for processing and storing evidence.

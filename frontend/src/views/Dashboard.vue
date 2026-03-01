@@ -32,12 +32,16 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
 import { useAppStore } from '../stores/app'
 
 const store = useAppStore()
 
 const getIntegrationStatus = (platform) => {
+  // Guard Clause: If integrations haven't been loaded yet, return false.
+  if (!Array.isArray(store.integrations)) {
+    return false;
+  }
+
   const integration = store.integrations.find(
     (integ) => integ.platform === platform && integ.is_active
   );

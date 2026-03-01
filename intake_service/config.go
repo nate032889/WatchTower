@@ -16,11 +16,17 @@ type Config struct {
 	ServerPort     string
 }
 
-// LoadConfig populates a Config struct from environment variables,
-// loading from a .env file as a fallback for local development.
+// LoadConfig populates a Config struct from environment variables.
+// It loads from .env.local if it exists, otherwise it falls back to .env.
 func LoadConfig() (*Config, error) {
-	// Attempt to load .env file. This is not an error if it doesn't exist.
-	_ = godotenv.Load()
+	// Use .env.local if it exists, otherwise use .env
+	envFile := ".env.local"
+	if _, err := os.Stat(envFile); os.IsNotExist(err) {
+		envFile = ".env"
+	}
+
+	// godotenv.Load will not override existing system environment variables.
+	_ = godotenv.Load(envFile)
 
 	cfg := &Config{
 		MinioEndpoint:  os.Getenv("MINIO_ENDPOINT"),

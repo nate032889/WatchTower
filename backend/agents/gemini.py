@@ -1,13 +1,13 @@
 import os
 import logging
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 import google.generativeai as genai
 from google.api_core import exceptions as google_exceptions
 
 from agents.base import BaseLLMAgent
-from api.models import Message # Import the Django model
+from api.models import Message
 
 logger = logging.getLogger(__name__)
 
@@ -18,18 +18,21 @@ try:
         SYSTEM_PROMPT = f.read()
 except FileNotFoundError:
     logger.error("system_prompt.md not found! The agent will not have its initial instructions.")
-    SYSTEM_PROMPT = "" # Fallback to an empty string
+    SYSTEM_PROMPT = "" 
 
 class GeminiAgent(BaseLLMAgent):
-    def __init__(self, model_name: str = "models/gemini-2.5-flash"):
+    def __init__(self, model_name: str = "models/gemini-2.5-flash", api_key: Optional[str] = None):
         """
-        Initializes the Gemini client, configuring it with the system prompt.
+        Initializes the Gemini client.
+        :param api_key: Optional API key. If not provided, falls back to env var.
         """
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable not found.")
+        # Use the provided key, or fall back to the environment variable
+        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
+        
+        if not self.api_key:
+            raise ValueError("Gemini API key not found. Please provide it or set GEMINI_API_KEY.")
 
-        genai.configure(api_key=api_key)
+        genai.configure(api_key=self.api_key)
 
         self.model = genai.GenerativeModel(
             model_name,
@@ -51,16 +54,14 @@ class GeminiAgent(BaseLLMAgent):
         Sends a prompt to the Gemini API as part of a conversation and returns the text response.
         """
         try:
-            # The agent is now responsible for formatting the history.
             sdk_history = self._format_history(history)
-
             chat_session = self.model.start_chat(history=sdk_history)
             response = chat_session.send_message(prompt)
             return response.text
 
         except (google_exceptions.GoogleAPICallError, google_exceptions.RetryError) as e:
             logger.error(f"Gemini API call failed: {e}")
-            raise  # Re-raise for the service layer to handle
+            raise
         except Exception as e:
             logger.error(f"An unexpected error occurred in GeminiAgent: {e}")
             raise

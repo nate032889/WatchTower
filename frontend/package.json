@@ -9,6 +9,7 @@
   "dependencies": {
     "pinia": "^2.1.7",
     "vue": "^3.4.0",
+    "vue-router": "^4.3.0",
     "vuetify": "^3.5.0",
     "@mdi/font": "^7.4.47"
   },

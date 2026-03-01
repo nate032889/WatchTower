@@ -28,7 +28,7 @@ class WatchTowerApiClient:
         :return: A tuple of (response_dict, None) on success, or (None, Exception) on failure.
         """
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=20)) as session:
+            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=120)) as session:
                 async with session.post(self.api_endpoint, json=payload) as response:
                     response.raise_for_status()  # Raises ClientResponseError for 4xx/5xx statuses
                     response_json = await response.json()

@@ -5,8 +5,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/nate/intake_service/data"
-	"github.com/nate/intake_service/service"
+	"github.com/nate032889/WatchTower/intake_service/data"
+	"github.com/nate032889/WatchTower/intake_service/service"
 )
 
 func main() {

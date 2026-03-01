@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/nate/intake_service/service"
+	"github.com/nate032889/WatchTower/intake_service/service"
 )
 
 type IntakeHandler struct {

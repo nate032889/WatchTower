@@ -4,7 +4,7 @@ from typing import Tuple, Dict, Any, Optional
 from agents.agent import get_llm_agent
 from agents.types import LLMProvider
 from api.infrastructure.intake_client import IntakeServiceClient
-from api.models import Conversation, Message, Evidence
+from api.models import Conversation, Message, Evidence, ProviderCredential, Organization
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,10 @@ class InteractorService:
         """
         Processes attachments and returns enriched context. Returns an error if no occurrence is active.
         """
-        # 1. Guard Clause: If there are no attachments, do nothing.
         attachment_urls = payload.get("attachment_urls", [])
         if not attachment_urls:
             return "", None
 
-        # 2. Occurrence Check: Only check for an occurrence if there are files to process.
         if not conversation.occurrence:
             logger.warning(f"Conversation {conversation.id} has no active occurrence. Cannot process attachments.")
             return "", ValueError("Attachments were sent, but no active occurrence is bound to this conversation.")
@@ -67,36 +65,75 @@ class InteractorService:
         return enriched_context, None
 
     @staticmethod
+    def _get_llm_credentials(organization_id: int) -> Tuple[LLMProvider, str]:
+        """
+        Retrieves the active LLM credentials for the given organization.
+        Defaults to Gemini if multiple are found, or raises an error if none exist.
+        """
+        try:
+            # Try to find a Gemini credential first as the default
+            cred = ProviderCredential.objects.filter(
+                organization_id=organization_id, 
+                is_active=True, 
+                provider='gemini'
+            ).first()
+            
+            # If no Gemini, take any active credential
+            if not cred:
+                cred = ProviderCredential.objects.filter(
+                    organization_id=organization_id, 
+                    is_active=True
+                ).first()
+
+            if not cred:
+                raise ValueError(f"No active LLM provider credentials found for organization {organization_id}")
+
+            return LLMProvider(cred.provider), cred.api_key
+
+        except Exception as e:
+            logger.error(f"Error fetching credentials: {e}")
+            raise
+
+    @staticmethod
     def process_incoming_message(payload: Dict[str, Any]) -> Tuple[Optional[str], Optional[Exception]]:
         """
         Orchestrates the entire process of handling an incoming message.
         """
-        # 1. Get Conversation context
-        conversation = InteractorService._get_or_create_conversation(payload)
-
-        # 2. Process attachments to enrich the prompt
-        attachment_context, err = InteractorService._process_attachments(payload, conversation)
-        if err:
-            return None, err
-
-        # 3. Save the user's message
-        final_content = attachment_context + payload["content"]
-        Message.objects.create(conversation=conversation, role="user", content=final_content)
-
-        # 4. Retrieve history and call the LLM
-        messages = conversation.messages.order_by("created_at").all()
-        
         try:
-            agent = get_llm_agent(LLMProvider.GEMINI)
+            # 1. Get Conversation context
+            conversation = InteractorService._get_or_create_conversation(payload)
+
+            # 2. Process attachments
+            attachment_context, err = InteractorService._process_attachments(payload, conversation)
+            if err:
+                return None, err
+
+            # 3. Save user message
+            final_content = attachment_context + payload["content"]
+            user_message = Message.objects.create(conversation=conversation, role="user", content=final_content)
+
+            # 4. Get LLM Credentials for the Organization
+            organization_id = payload.get("organization_id")
+            if not organization_id:
+                 return None, ValueError("Organization ID is missing from the payload.")
+            
+            provider, api_key = InteractorService._get_llm_credentials(organization_id)
+
+            # 5. Call LLM
+            # Efficiently fetch history by excluding the message we just created
+            history = conversation.messages.exclude(id=user_message.id).order_by("created_at")
+            
+            agent = get_llm_agent(provider, api_key=api_key)
+
             response_text = agent.generate_response(
-                prompt=final_content, history=messages[:-1]
+                prompt=final_content, history=list(history)
             )
+
+            # 6. Save response
+            Message.objects.create(conversation=conversation, role="model", content=response_text)
+
+            return response_text, None
+
         except Exception as e:
-            logger.error(f"LLM generation failed for conversation {conversation.id}: {e}", exc_info=True)
+            logger.error(f"Critical error in InteractorService: {e}", exc_info=True)
             return None, e
-
-        # 5. Save the model's response
-        Message.objects.create(conversation=conversation, role="model", content=response_text)
-
-        # 6. Return the result
-        return response_text, None

@@ -4,12 +4,13 @@
     :items="organizations"
     item-title="name"
     item-value="id"
-    label="Select Organization"
+    label="Active Organization"
     dense
     outlined
     hide-details
     class="mx-4"
-    style="max-width: 200px;"
+    style="max-width: 250px;"
+    :disabled="organizations.length === 0"
   ></v-select>
 </template>
 

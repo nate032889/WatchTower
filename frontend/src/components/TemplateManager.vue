@@ -14,13 +14,12 @@
             <v-divider class="mx-4" inset vertical></v-divider>
             <v-spacer></v-spacer>
             <v-dialog v-model="dialog" max-width="500px">
-              <template v-slot:activator="{ on, attrs }">
+              <template v-slot:activator="{ props }">
                 <v-btn
                   color="primary"
                   dark
                   class="mb-2"
-                  v-bind="attrs"
-                  v-on="on"
+                  v-bind="props"
                 >
                   New Template
                 </v-btn>
@@ -51,10 +50,10 @@
 
                 <v-card-actions>
                   <v-spacer></v-spacer>
-                  <v-btn color="blue darken-1" text @click="close">
+                  <v-btn color="blue-darken-1" text @click="close">
                     Cancel
                   </v-btn>
-                  <v-btn color="blue darken-1" text @click="save">
+                  <v-btn color="blue-darken-1" text @click="save">
                     Save
                   </v-btn>
                 </v-card-actions>
@@ -63,10 +62,10 @@
           </v-toolbar>
         </template>
         <template v-slot:item.actions="{ item }">
-          <v-icon small class="mr-2" @click="editItem(item)">
+          <v-icon size="small" class="me-2" @click="editItem(item)">
             mdi-pencil
           </v-icon>
-          <v-icon small @click="deleteItem(item)">
+          <v-icon size="small" @click="deleteItem(item)">
             mdi-delete
           </v-icon>
         </template>
@@ -83,9 +82,9 @@ const store = useAppStore()
 
 const dialog = ref(false)
 const headers = [
-  { text: 'Name', value: 'name' },
-  { text: 'Content', value: 'content' },
-  { text: 'Actions', value: 'actions', sortable: false },
+  { title: 'Name', key: 'name' },
+  { title: 'Content', key: 'content' },
+  { title: 'Actions', key: 'actions', sortable: false },
 ]
 
 const templates = computed(() => store.templates)
@@ -102,23 +101,25 @@ const defaultItem = {
 
 const close = () => {
   dialog.value = false
-  editedItem.value = Object.assign({}, defaultItem)
+  editedItem.value = { ...defaultItem }
 }
 
 const save = () => {
   if (editedItem.value.name && editedItem.value.content) {
-    store.addTemplate(editedItem.value)
+    store.addTemplate({ ...editedItem.value })
   }
   close()
 }
 
 const editItem = (item) => {
-  editedItem.value = Object.assign({}, item)
+  editedItem.value = { ...item }
   dialog.value = true
 }
 
 const deleteItem = (item) => {
-  const index = templates.value.indexOf(item)
-  confirm('Are you sure you want to delete this item?') && templates.value.splice(index, 1)
+  const index = templates.value.findIndex(t => t.id === item.id)
+  if (index > -1) {
+    confirm('Are you sure you want to delete this item?') && templates.value.splice(index, 1)
+  }
 }
 </script>

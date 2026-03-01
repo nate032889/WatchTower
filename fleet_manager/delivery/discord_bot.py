@@ -1,4 +1,5 @@
 import logging
+import os
 import discord
 from service.message_service import MessageService
 
@@ -9,7 +10,7 @@ class StatelessDiscordBot(discord.Client):
     """
     The Delivery Layer for Discord. This class is a thin wrapper around the
     discord.Client that handles receiving events and delegating all logic
-    to the service layer. It contains no business logic.
+    to the service layer. It contains delivery-specific logic but no business logic.
     """
 
     def __init__(
@@ -21,9 +22,6 @@ class StatelessDiscordBot(discord.Client):
     ):
         """
         Initializes the bot with its configuration and a MessageService instance.
-        :param token: The Discord bot token.
-        :param organization_id: The organization this bot instance belongs to.
-        :param message_service: The service responsible for processing messages.
         """
         intents = discord.Intents.default()
         intents.messages = True
@@ -33,27 +31,49 @@ class StatelessDiscordBot(discord.Client):
         self.token = token
         self.organization_id = organization_id
         self.message_service = message_service
+        self.message_limit = int(os.getenv('DISCORD_MESSAGE_LIMIT', 2000))
+
+    async def send_in_chunks(self, channel, text: str):
+        """
+        Sends a long string of text in chunks, respecting the Discord message limit
+        and preserving line integrity. This is DELIVERY logic.
+        """
+        if not text:
+            return
+
+        ai_chunks = text.split('[SPLIT]')
+        
+        for ai_chunk in ai_chunks:
+            if not ai_chunk.strip():
+                continue
+            
+            remaining_text = ai_chunk.strip()
+            while len(remaining_text) > 0:
+                if len(remaining_text) <= self.message_limit:
+                    await channel.send(remaining_text)
+                    break
+
+                split_at = remaining_text.rfind('\\n', 0, self.message_limit)
+                
+                if split_at == -1:
+                    split_at = self.message_limit
+
+                chunk_to_send = remaining_text[:split_at]
+                remaining_text = remaining_text[split_at:].lstrip()
+                
+                if chunk_to_send:
+                    await channel.send(chunk_to_send)
 
     async def on_ready(self):
-        """
-        Event handler for when the bot successfully logs in.
-        """
         logger.info(f"Bot for org {self.organization_id} logged in as {self.user}")
 
     async def on_message(self, message: discord.Message):
-        """
-        Event handler for when a message is received.
-        :param message: The Discord message object.
-        """
-        # 1. Guard clauses: Ignore messages from the bot itself or if not mentioned.
         if message.author == self.user or not self.user.mentioned_in(message):
             return
 
-        # 2. Extract raw data from the Discord message object.
         content = message.content.replace(f'<@!{self.user.id}>', '').strip()
         attachment_urls = [att.url for att in message.attachments]
 
-        # 3. Delegate all logic to the service layer.
         response_text, err = await self.message_service.process_discord_message(
             organization_id=self.organization_id,
             channel_id=str(message.channel.id),
@@ -62,14 +82,25 @@ class StatelessDiscordBot(discord.Client):
             attachment_urls=attachment_urls,
         )
 
-        # 4. Send the response from the service back to the channel.
         if response_text:
-            await message.channel.send(response_text)
+            await self.send_in_chunks(message.channel, response_text)
         
-        # The service layer is responsible for logging the error, so we don't need to here.
+        if err:
+            logger.error(f"An error occurred while processing the message: {err}")
 
     async def start_bot(self):
         """
-        Starts the bot's connection to Discord.
+        Starts the bot's connection to Discord and handles login failures.
         """
-        await self.start(self.token)
+        try:
+            await self.start(self.token)
+        except discord.errors.LoginFailure:
+            logger.error(
+                f"Login failed for bot belonging to organization {self.organization_id}. "
+                f"The token is likely incorrect or expired. The bot will not start."
+            )
+        except Exception as e:
+            logger.error(
+                f"An unexpected error occurred for bot in organization {self.organization_id}: {e}",
+                exc_info=True
+            )

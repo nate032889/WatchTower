@@ -1,24 +1,17 @@
 import asyncio
 import json
 import logging
-import os
 from typing import Dict
-
+import aiohttp
 import redis.asyncio as redis
-from dotenv import load_dotenv
-
 from delivery.discord_bot import StatelessDiscordBot
 from infrastructure.api_client import WatchTowerApiClient
 from service.message_service import MessageService
+from config import load_config
 
-# --- Configuration ---
-load_dotenv()
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-
-API_ENDPOINT = os.getenv("API_ENDPOINT", "http://api:8000/api/v1/interactor/message/")
-REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
-PUB_SUB_CHANNEL = "bot_integrations"
+config = load_config()
 
 
 class BotFleet:
@@ -33,26 +26,22 @@ class BotFleet:
         """
         Instantiates all layers and starts a new bot instance as a concurrent task.
         """
+        if not token:
+            logger.error(f"Attempted to start bot for org {organization_id} with an empty token.")
+            return
+        
         if token in self.bots:
             logger.warning(f"Bot for org {organization_id} is already running.")
             return
 
         logger.info(f"Starting bot for organization {organization_id}...")
-
-        # 1. Instantiate Infrastructure Layer
-        api_client = WatchTowerApiClient(api_endpoint=API_ENDPOINT)
-
-        # 2. Instantiate Service Layer (injecting infrastructure)
+        api_client = WatchTowerApiClient(api_endpoint=config.API_ENDPOINT)
         message_service = MessageService(api_client=api_client)
-
-        # 3. Instantiate Delivery Layer (injecting service)
         bot = StatelessDiscordBot(
             token=token,
             organization_id=organization_id,
             message_service=message_service
         )
-
-        # 4. Create and store the asyncio task
         task = asyncio.create_task(bot.start_bot())
         self.bots[token] = task
         logger.info(f"Bot for organization {organization_id} started successfully.")
@@ -74,14 +63,34 @@ class BotFleet:
             logger.info("Bot task successfully cancelled.")
 
 
+async def sync_initial_state(fleet: BotFleet):
+    """
+    On startup, fetches all active bots from the API and starts them.
+    """
+    logger.info("Performing initial state sync...")
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(config.API_BOT_INTEGRATIONS_URL) as response:
+                response.raise_for_status()
+                integrations = await response.json()
+                logger.info(f"Found {len(integrations)} active integrations to start.")
+                for integration in integrations:
+                    await fleet.start_bot(
+                        token=integration.get("bot_token"),
+                        organization_id=integration.get("organization")
+                    )
+    except aiohttp.ClientError as e:
+        logger.error(f"Could not perform initial sync with API: {e}. Fleet may be out of sync.")
+
+
 async def redis_listener(fleet: BotFleet):
     """
     Listens to Redis for commands to start or stop bots.
     """
-    r = redis.from_url(REDIS_URL, decode_responses=True)
+    r = redis.from_url(config.REDIS_URL, decode_responses=True)
     pubsub = r.pubsub()
-    await pubsub.subscribe(PUB_SUB_CHANNEL)
-    logger.info(f"Subscribed to Redis channel: '{PUB_SUB_CHANNEL}'")
+    await pubsub.subscribe(config.PUB_SUB_CHANNEL)
+    logger.info(f"Subscribed to Redis channel: '{config.PUB_SUB_CHANNEL}'")
 
     while True:
         try:
@@ -111,6 +120,7 @@ async def main():
     The main entrypoint for the Fleet Manager service.
     """
     fleet = BotFleet()
+    await sync_initial_state(fleet)
     redis_task = asyncio.create_task(redis_listener(fleet))
     await asyncio.gather(redis_task)
 

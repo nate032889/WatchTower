@@ -1,4 +1,4 @@
-module github.com/nate/intake_service
+module github.com/nate032889/WatchTower/intake_service
 
 go 1.22
 
