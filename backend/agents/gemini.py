@@ -1,11 +1,13 @@
 import os
 import logging
 from pathlib import Path
-import google.generativeai as genai
-from google.generativeai.types import content_types
-from google.api_core import exceptions as google_exceptions
-from agents.base import BaseLLMAgent
 from typing import List, Dict, Any
+
+import google.generativeai as genai
+from google.api_core import exceptions as google_exceptions
+
+from agents.base import BaseLLMAgent
+from api.models import Message # Import the Django model
 
 logger = logging.getLogger(__name__)
 
@@ -34,13 +36,23 @@ class GeminiAgent(BaseLLMAgent):
             system_instruction=SYSTEM_PROMPT
         )
 
-    def generate_response(self, prompt: str, history: List[Dict[str, Any]] = None) -> str:
+    def _format_history(self, messages: List[Message]) -> List[Dict[str, Any]]:
+        """
+        Private helper to translate Django Message objects into the Gemini API format.
+        """
+        sdk_history = []
+        if messages:
+            for msg in messages:
+                sdk_history.append({'role': msg.role, 'parts': [msg.content]})
+        return sdk_history
+
+    def generate_response(self, prompt: str, history: List[Message] = None) -> str:
         """
         Sends a prompt to the Gemini API as part of a conversation and returns the text response.
         """
         try:
-            # The history needs to be converted to the SDK's expected format.
-            sdk_history = [content_types.to_content(item) for item in history] if history else []
+            # The agent is now responsible for formatting the history.
+            sdk_history = self._format_history(history)
 
             chat_session = self.model.start_chat(history=sdk_history)
             response = chat_session.send_message(prompt)

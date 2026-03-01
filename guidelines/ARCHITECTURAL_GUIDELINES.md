@@ -58,3 +58,22 @@ This document outlines the core architectural principles, design patterns, and t
     * **Imperative/OOP:** Tell the system *what* AND *how*. Good for side-effects and exceptions. Use strictly for Views, Serialization, Repositories, and external clients.
 * **View Layer Strictness:** No business logic lives in a View. Views parse data, pass it to a Service, and return a response.
 * **Go-Style Error Handling (Python):** Avoid deep `try/except` blocks. Use Error Objects or tuple returns to encapsulate exceptions (e.g., `data, err = do_something()`).
+
+## 7. Universal Microservice Layering Mandate (The "No Microservice is Too Small" Rule)
+
+Regardless of the language, framework, or size of a new service (e.g., a massive Django backend or a tiny Python/Go worker script), the core Domain-Driven Design layering rules apply unconditionally. A service is never "too small" to skip these boundaries.
+
+Every independent service **must** implement the following distinct layers:
+
+1. **Delivery / Interface Layer (The "Ears and Mouth"):**
+    * **Responsibilities:** Listening for external events (HTTP routers, WebSocket clients, Redis Pub/Sub subscribers, CLI arguments).
+    * **Constraints:** This layer contains **ZERO** business logic. It simply receives a payload, parses it into a standard structure, and passes it to the Service Layer.
+    * *Example:* A Discord Bot class, a FastAPI router, or a Go HTTP handler.
+
+2. **Service Layer (The "Brain"):**
+    * **Responsibilities:** Orchestrating the business rules, validating state, and deciding what happens next.
+    * **Constraints:** This layer must be completely agnostic to how data is transmitted or stored. It cannot import HTTP client libraries (like `requests` or `aiohttp`) or specific database drivers. It delegates all external communication to the Infrastructure Layer.
+
+3. **Infrastructure Layer (The "Hands"):**
+    * **Responsibilities:** Executing side effects. Talking to databases, external APIs, backend APIs, or LLMs.
+    * **Constraints:** Treat backend APIs exactly like a database repository. The infrastructure client (e.g., `WatchTowerApiClient`) wraps the HTTP logic. It must catch HTTP-specific exceptions, parse JSON, and return domain-friendly data structures (or Error Objects) back to the Service Layer. The Service Layer should never see an raw `HttpResponse` object.
