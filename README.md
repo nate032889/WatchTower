@@ -31,18 +31,18 @@ WatchTower is composed of several microservices orchestrated by Docker Compose:
 
 ```mermaid
 graph TD
-    User[User (Browser/Discord)] -->|HTTP/HTTPS| NGINX[NGINX (frontend)]
+    User[User] -->|HTTP/HTTPS| NGINX[NGINX Frontend]
     NGINX -->|Static Files| frontend_app[Vue.js App]
-    NGINX -->|/v1/ (API Gateway)| backend[Django Backend API]
-    NGINX -->|/intake/v1/ (API Gateway)| intake_service[Go Intake Service]
+    NGINX -->|v1 API Gateway| backend[Django Backend API]
+    NGINX -->|Intake v1 API Gateway| intake_service[Go Intake Service]
 
     backend -->|DB Access| db[PostgreSQL]
     backend -->|Pub/Sub| redis[Redis]
-    backend -->|HTTP (Internal)| intake_service
+    backend -->|HTTP Internal| intake_service
     backend -->|Object Storage| minio[Minio]
 
     fleet_manager[Python Fleet Manager] -->|WebSockets| Discord[Discord API]
-    fleet_manager -->|HTTP (Internal)| backend
+    fleet_manager -->|HTTP Internal| backend
     fleet_manager -->|Pub/Sub| redis
 
     intake_service -->|Object Storage| minio
