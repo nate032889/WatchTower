@@ -13,6 +13,7 @@ type Config struct {
 	MinioAccessKey string
 	MinioSecretKey string
 	MinioBucket    string
+	ServerHost     string
 	ServerPort     string
 }
 
@@ -33,12 +34,17 @@ func LoadConfig() (*Config, error) {
 		MinioAccessKey: os.Getenv("MINIO_ACCESS_KEY"),
 		MinioSecretKey: os.Getenv("MINIO_SECRET_KEY"),
 		MinioBucket:    os.Getenv("MINIO_BUCKET_NAME"),
+		ServerHost:     os.Getenv("SERVER_HOST"),
 		ServerPort:     os.Getenv("SERVER_PORT"),
 	}
 
 	// Validate required fields
 	if cfg.MinioEndpoint == "" || cfg.MinioAccessKey == "" || cfg.MinioSecretKey == "" || cfg.MinioBucket == "" {
 		return nil, fmt.Errorf("MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, and MINIO_BUCKET_NAME must be set")
+	}
+
+	if cfg.ServerHost == "" {
+		cfg.ServerHost = "127.0.0.1" // Default host
 	}
 
 	if cfg.ServerPort == "" {

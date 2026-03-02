@@ -34,7 +34,7 @@ func main() {
 	r := NewRouter(svc)
 
 	// 5. Start the server
-	listenAddr := fmt.Sprintf(":%s", cfg.ServerPort)
+	listenAddr := fmt.Sprintf("%s:%s", cfg.ServerHost, cfg.ServerPort)
 	log.Printf("Starting intake service on %s...", listenAddr)
 	if err := http.ListenAndServe(listenAddr, r); err != nil {
 		log.Fatalf("FATAL: Could not start server: %v", err)

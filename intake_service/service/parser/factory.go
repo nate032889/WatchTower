@@ -12,6 +12,8 @@ func GetParser(filename string) Parser {
 		return &TextParser{}
 	case ".pcap":
 		return &PcapParser{}
+	case ".pcapng":
+		return &PcapParser{}
 	case ".pdf":
 		return &PdfParser{}
 	case ".docx", ".pptx":

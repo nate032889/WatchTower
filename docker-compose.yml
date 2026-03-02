@@ -44,6 +44,7 @@ services:
       - DB_HOST=db
       - DB_PORT=5432
       - REDIS_URL=redis://redis:6379/0
+      # Corrected to remove the /api prefix
       - INTAKE_SERVICE_URL=http://intake-service:3000/v1/intake
       - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
@@ -65,7 +66,6 @@ services:
       - ./fleet_manager:/app
     environment:
       - API_ENDPOINT=http://api:8000/api/v1/interactor/message/
-      # Corrected to use the internal-only endpoint for syncing bots
       - API_BOT_INTEGRATIONS_URL=http://api:8000/v1/internal/bot-integrations/
       - REDIS_URL=redis://redis:6379
     depends_on:

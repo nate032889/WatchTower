@@ -29,6 +29,12 @@ type IntakeResponse struct {
 	ExtractedText string `json:"extracted_text"`
 }
 
+func (h *IntakeHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status": "ok", "service": "intake_service"}`))
+}
+
 func (h *IntakeHandler) GetEvidence(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	objectKey := chi.URLParam(r, "object_key")

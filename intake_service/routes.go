@@ -16,6 +16,7 @@ func NewRouter(svc service.IntakeService) *chi.Mux {
 
 	// All routes are now nested under the /v1 group
 	r.Route("/v1", func(r chi.Router) {
+		r.Get("/health", intakeHandler.HealthCheck)
 		r.Get("/evidence/{object_key}", intakeHandler.GetEvidence)
 		r.Post("/intake", intakeHandler.IntakeFile)
 	})

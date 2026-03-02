@@ -6,8 +6,9 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# The base URL for the Go intake service, configured via environment or a default.
-INTAKE_SERVICE_URL = os.getenv("INTAKE_SERVICE_URL", "http://intake-service:3000/api/v1/intake")
+# The base URL for the Go intake service.
+# Corrected to match the Go service's route structure (no /api prefix).
+INTAKE_SERVICE_URL = os.getenv("INTAKE_SERVICE_URL", "http://intake-service:3000/v1/intake")
 
 
 class IntakeServiceClient:
@@ -30,12 +31,13 @@ class IntakeServiceClient:
             file_response = requests.get(url, stream=True, timeout=15)
             file_response.raise_for_status()
             file_content = file_response.content
-            filename = url.split('/')[-1]
+            # Sanitize filename to remove query parameters
+            filename = url.split('/')[-1].split('?')[0]
 
             # 2. POST the file as multipart/form-data to the intake_service
             logger.info(f"Forwarding '{filename}' to intake service at {INTAKE_SERVICE_URL}")
             files = {'file': (filename, file_content)}
-            intake_response = requests.post(INTAKE_SERVICE_URL, files=files, timeout=30)
+            intake_response = requests.post(INTAKE_SERVICE_URL, files=files, timeout=120)
             intake_response.raise_for_status()
 
             # 3. On success, return the JSON response and no error

@@ -36,6 +36,20 @@ func NewMinioRepository(endpoint, accessKey, secretKey, bucketName string) (Mini
 		return nil, err
 	}
 
+	// Ensure the bucket exists
+	ctx := context.Background()
+	exists, err := minioClient.BucketExists(ctx, bucketName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if bucket exists: %w", err)
+	}
+	if !exists {
+		log.Printf("Bucket %s does not exist, creating it...", bucketName)
+		err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create bucket: %w", err)
+		}
+	}
+
 	log.Println("Successfully connected to Minio.")
 	return &minioRepository{client: minioClient, bucketName: bucketName}, nil
 }
